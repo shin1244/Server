@@ -4,52 +4,46 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <queue>
+#include <windows.h>
+#include <chrono>
 
-class SpinLock
-{
-public:
-	void lock()
-	{
-		bool expected = false;
-		while (!locked_.compare_exchange_strong(expected, true))
-			expected = false;
-	}
-	void unlock()
-	{
-		locked_.store(false);
-	}
-private:
-	std::atomic<bool> locked_ = false;
-};
-
-int32 sum = 0;
 std::mutex m;
-SpinLock spinLock;
+std::queue<int32> q;
+HANDLE handle;
 
-void Add()
+void Producer()
 {
-	for (int32 i = 0; i < 10'0000; ++i)
+	while (true)
 	{
-		std::lock_guard<SpinLock>guard(spinLock);
-		sum++;
+		std::unique_lock<std::mutex> lock(m);
+		q.push(100);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		SetEvent(handle);
 	}
 }
-void Sub()
+
+void Consumer()
 {
-	for (int32 i = 0; i < 10'0000; ++i)
+	while (true)
 	{
-		std::lock_guard<SpinLock>guard(spinLock);
-		sum--;
+		WaitForSingleObject(handle, -1);
+		std::unique_lock<std::mutex> lock(m);
+		if (!q.empty())
+		{
+			int32 data = q.front();
+			q.pop();
+			std::cout << data << "\n";
+		}
 	}
 }
 
 int main()
 {
-	std::thread t1(Add);
-	std::thread t2(Sub);
+	handle = CreateEvent(NULL, FALSE, FALSE, NULL);
+	std::thread t1(Producer);
+	std::thread t2(Consumer);
 
 	t1.join();
 	t2.join();
-
-	std::cout << sum << "\n";
 }
