@@ -49,3 +49,36 @@ private:
 	std::condition_variable condVar_;
 };
 
+template<typename T>
+class LockFreeStack
+{
+	struct Node
+	{
+		Node(const T& value) : data(value), next(nullptr) {}
+		T data;
+		Node* next;
+	};
+
+public:
+	void Push(const T& value)
+	{
+		Node* n = new Node(value);
+		n->next = head_;
+		
+		head_.compare_exchange_strong(n->next, n);
+	}
+
+	bool Pop(T& value)
+	{
+		Node* oldHead = head_;
+		if (oldHead == nullptr) return false;
+		
+		head_.compare_exchange_strong(oldHead, oldHead->next);
+		value = oldHead->data;
+		delete oldHead;
+		return true;
+	} 
+private:
+	std::atomic<Node*> head_;
+	std::atomic<int32> popCount_ = 0;
+};

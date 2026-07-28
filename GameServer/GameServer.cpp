@@ -7,17 +7,27 @@
 #include <queue>
 #include <windows.h>
 #include <chrono>
+#include <valarray>
+#include "ThreadManager.h"
+#include "CoreMacro.h"
+using namespace std::chrono_literals;
 
-thread_local  int32 LThreadId = 0;
+CoreGlobal Core;
 
-void ThreadMain(int32 id)
+void ThreadMain()
 {
-	LThreadId = id;
-
+	while (true)
+	{
+		std::cout << "Hello! I am Thread... " << LThreadId << std::endl;
+		std::this_thread::sleep_for(1s);
+	}
 }
 
 int main()
 {
-	std::thread t;
-	t.get_id()
+	for (int32 i = 0; i < 5; ++i)
+	{
+		g_thread_manager->Launch(ThreadMain);
+	}
+	g_thread_manager->Join();
 }
